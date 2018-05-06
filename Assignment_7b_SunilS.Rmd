@@ -1,0 +1,246 @@
+---
+title: "Assignment_7b_SunilS"
+author: "Sunil S"
+date: "20 September 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls(all=TRUE))
+
+setwd("E:/INSOFE_CPEE/Wk6/09092017_Day1/201700909_Batch32_BLR_CSE7302c_LogReg_NaiveBayesLAB/20170715_Batch29_CSE7302c_NB_Activity.nb")
+```
+
+##Read file
+```{r echo =TRUE, include=FALSE}
+flight <- read.csv("FlightDelays.csv")
+
+```
+
+## libraries
+```{r echo =TRUE, include=FALSE}
+library(e1071)
+```
+
+## check data
+```{r echo =TRUE, include=TRUE}
+head(flight)
+str(flight)
+summary(flight)
+
+```
+## pre processing data, converting int to factor and binning DEP_TIME
+```{r echo =TRUE, include=FALSE}
+
+flight$Weather<-as.factor(flight$Weather)
+flight$DAY_WEEK<-as.factor(flight$DAY_WEEK)
+flight$Flight.Status<-as.factor(flight$Flight.Status)
+
+flight$levels<-ifelse(flight$DEP_TIME>=600 & flight$DEP_TIME<=1200,"level1",
+               ifelse(flight$DEP_TIME>=1200 & flight$DEP_TIME<=1800,"level2",
+                      ifelse(flight$DEP_TIME>=1800 & flight$DEP_TIME<=2100,"level3","level4")))
+
+flight$DEP_TIME <- NULL
+flight$levels <- as.factor(flight$levels)
+```
+
+## checking distribution of Levels in flight status
+```{r echo =TRUE}
+plot(flight$Flight.Status,
+     col=c("Green","Red"),
+     main="Distribution of Levels in Flight Status",
+     ylab="No. of levels of 0 & 1",
+     xlab="Different levels in Flight Status"
+     )
+```
+## splitting data as train and test
+```{r echo = TRUE}
+set.seed(123)
+rows=seq(1,nrow(flight),1)
+trainRows=sample(rows,(70*nrow(flight))/100)
+train = flight[trainRows,]
+test = flight[-trainRows,]
+dim(train)
+dim(test)
+```
+
+
+```{r echo=TRUE}
+table(flight$Flight.Status)
+str(flight)
+```
+
+
+## checking distribution of levels
+```{r echo=TRUE, include=TRUE}
+cat("\n Percentage of Not Delayed=",length(which(flight$Flight.Status==0))/nrow(flight))
+cat("\n Percentage of Delayed=",length(which(flight$Flight.Status==1))/nrow(flight))
+```
+## Target distribution in train data and test data
+```{r echo=TRUE, include=TRUE}
+cat("\n Percentage of Not Delayed in train data=",length(which(train$Flight.Status==0))/nrow(train))
+cat("\n Percentage of Delayed in train data=",length(which(train$Flight.Status==1))/nrow(train))
+cat("\n Percentage of Not Delayed in test data=",length(which(test$Flight.Status==0))/nrow(test))
+cat("\n Percentage of Delayed in test data=",length(which(test$Flight.Status==1))/nrow(test))
+```
+
+#Building model using Naive Bayes
+```{r echo=TRUE, include=TRUE}
+library(e1071)
+model_nb = naiveBayes(Flight.Status ~., data = train)
+model_nb$tables
+
+```
+## predict the flight status on test data
+```{r echo=TRUE, include=TRUE}
+nb_pred = predict(model_nb, newdata = test)
+
+
+```
+## confusion matrix
+```{r echo =True, include = TRUE}
+Confusionmatrix = table(test$Flight.Status,nb_pred,dnn=c("actual","predicted"))
+Confusionmatrix
+TP=Confusionmatrix[2,2];  
+TN=Confusionmatrix[1,1];  
+FP=Confusionmatrix[1,2];  
+FN=Confusionmatrix[2,1];  
+cat('\n TP=',TP)
+cat('\n TN=',TN)
+cat('\n FP=',FP)
+cat('\n FN=',FN)
+```
+
+##checking accuracy, Precision, Sensitivity, Specificity
+```{r echo =TRUE, include=TRUE}
+accuracy<-(TP+TN)/(TP+TN+FP+FN)
+cat('\n Accuracy=',accuracy)
+Precision<-(TP)/(TP+FP)
+cat('\n Precision=', Precision)
+Sensitivity<-(TP)/(TP+FN)
+cat('\n Sensitivity=', Sensitivity)
+Specificity=(TN)/(TN+FP)
+cat('\n Specificity=',Specificity)
+    
+```
+
+##inspecting Flight data
+```{r echo =TRUE, include=TRUE}
+str(flight)
+flight$Flight.Status = as.numeric(flight$Flight.Status)
+
+flight$CARRIER = as.numeric(flight$CARRIER)
+sd_Carrier = sd(flight$CARRIER)
+sd_Carrier
+cor(x = flight$CARRIER,y = flight$Flight.Status) #-0.102295
+
+flight$DEST = as.numeric(flight$DEST)
+sd_Dest = sd(flight$DEST)
+sd_Dest
+cor(x = flight$DEST,y = flight$Flight.Status) #-0.094
+
+flight$ORIGIN = as.numeric(flight$ORIGIN)
+sd_Origin = sd(flight$ORIGIN)
+sd_Origin
+cor(x = flight$ORIGIN,y = flight$Flight.Status) #0.05666
+
+flight$Weather = as.numeric(flight$Weather)
+sd_Weather = sd(flight$Weather)
+sd_Weather
+cor(x = flight$Weather,y = flight$Flight.Status) #0.2472
+
+flight$DAY_WEEK = as.numeric(flight$DAY_WEEK)
+sd_DayWeek = sd(flight$DAY_WEEK)
+sd_DayWeek
+cor(x = flight$DAY_WEEK,y = flight$Flight.Status) #-0.0407
+
+flight$levels = as.numeric(flight$levels)
+sd_levels = sd(flight$levels)
+sd_levels
+cor(x = flight$levels,y = flight$Flight.Status) #0.1208
+
+#as correlation with Flight.Status is least with DEST try model by removing DEST.
+
+```
+```{r echo = TRUE, include = TRUE}
+train1 = train
+train1$DEST = NULL
+model_nb1 = naiveBayes(Flight.Status ~., data = train1)
+model_nb$tables
+
+test1 = test
+test1$DEST = NULL
+nb_pred1 = predict(model_nb1, newdata = test1)
+
+Confusionmatrix = table(test1$Flight.Status,nb_pred1,dnn=c("actual","predicted"))
+Confusionmatrix
+TP=Confusionmatrix[2,2];  
+TN=Confusionmatrix[1,1];  
+FP=Confusionmatrix[1,2];  
+FN=Confusionmatrix[2,1];  
+cat('\n TP=',TP)
+cat('\n TN=',TN)
+cat('\n FP=',FP)
+cat('\n FN=',FN)
+
+accuracy<-(TP+TN)/(TP+TN+FP+FN)
+cat('\n Accuracy=',accuracy)
+Precision<-(TP)/(TP+FP)
+cat('\n Precision=', Precision)
+Sensitivity<-(TP)/(TP+FN)
+cat('\n Sensitivity=', Sensitivity)
+Specificity=(TN)/(TN+FP)
+cat('\n Specificity=',Specificity)
+```
+## We observe that after dropping DEST, there is increase in Accuracy and Specificity of the model, while Precision and Sensitivity has decreased. For this model, it is required to be precisie in predicting Delay. So Sensitivity and Precision is most important.Removing DEST does not help.
+
+ 
+## Trying PCA
+```{r echo =TRUE, include = TRUE}
+train2 = train;
+str(train2)
+train2$CARRIER =as.numeric(train2$CARRIER)
+train2$DEST =as.numeric(train2$DEST)
+train2$ORIGIN =as.numeric(train2$ORIGIN)
+train2$Weather =as.numeric(train2$Weather)
+train2$DAY_WEEK =as.numeric(train2$DAY_WEEK)
+train2$levels =as.numeric(train2$levels)
+
+train2.predictors <- train2[,-6]
+str(train2.predictors)
+
+scaled.Predictors <- scale(train2.predictors)
+scaled.Predictors
+pca <- princomp(scaled.Predictors)
+summary(pca)
+
+```
+## 5 components are enough as they describe 90% of the variation. Modelling using PCA.
+```{r echo =TRUE, include =TRUE}
+train2$Flight.Status =as.numeric(train2$Flight.Status)
+pc_traindata<-data.frame(pca$scores[,1:5],train2$Flight.Status)
+
+mod_pc_lm<-lm(train2.Flight.Status ~.,data=pc_traindata)
+summary(mod_pc_lm)
+
+test2 = test[,-6]
+test2$CARRIER =as.numeric(test2$CARRIER)
+test2$DEST =as.numeric(test2$DEST)
+test2$ORIGIN =as.numeric(test2$ORIGIN)
+test2$Weather =as.numeric(test2$Weather)
+test2$DAY_WEEK =as.numeric(test2$DAY_WEEK)
+test2$levels =as.numeric(test2$levels)
+
+str(test2)
+pc_test<-predict(pca,newdata=test2[1:6])
+pc_test<-data.frame(pc_test[,1:6])
+
+#Apply new model on this transformed test data
+pred_test_pc<-predict(mod_pc_lm,newdata=pc_test)
+
+test$Flight.Status = as.numeric(test$Flight.Status)
+#calculate evaluation metrics
+regr.eval(test$Flight.Status,pred_test_pc)
+
+```
+## With least errrors, PCA seems to improve the model.
